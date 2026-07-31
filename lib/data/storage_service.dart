@@ -27,7 +27,10 @@ class StorageService {
   }
 
   Future<void> saveBoard(Board board) async {
-    await board.save();
+    // put() both inserts new and updates existing by key — handles both first-save
+    // and subsequent updates (HiveObject.save() only works AFTER the object has
+    // been put in a box, which it hasn't for a freshly constructed Board).
+    await boardsBox.put(board.id, board);
   }
 
   Future<void> deleteBoard(Board board) async {

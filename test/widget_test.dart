@@ -1,4 +1,8 @@
+import 'dart:io';
+
 import 'package:flutter_test/flutter_test.dart';
+import 'package:hive/hive.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 
 import 'package:expense_app/models/board.dart';
 import 'package:expense_app/theme/app_themes.dart';
@@ -47,6 +51,50 @@ void main() {
       );
       expect(b.total, 50.75);
       expect(b.totalsByCategory(), {'Food': 42.50, 'Travel': 8.25});
+    });
+  });
+
+  group('Hive round-trip (regression: newly-constructed boards must persist)',
+      () {
+    setUpAll(() async {
+      TestWidgetsFlutterBinding.ensureInitialized();
+      final tmp = await Directory.systemTemp.createTemp('expense_test_');
+      Hive.init(tmp.path);
+      if (!Hive.isAdapterRegistered(1)) {
+        Hive.registerAdapter(BoardAdapter());
+      }
+      if (!Hive.isAdapterRegistered(2)) {
+        Hive.registerAdapter(ExpenseRowAdapter());
+      }
+    });
+
+    test('Box.put() inserts AND updates — the fix for "create does nothing"',
+        () async {
+      final box = await Hive.openBox<Board>('boards_regression');
+      await box.clear();
+
+      final b = Board(
+        id: 'regression-1',
+        name: 'Persistence Test',
+        themeIndex: 0,
+        styleIndex: 0,
+        createdAt: DateTime(2026, 1, 1),
+      );
+
+      // First-save path (the bug): box.put() must insert a never-before-seen board.
+      await box.put(b.id, b);
+      expect(box.values.length, 1,
+          reason: 'put() must insert a freshly constructed board');
+      expect(box.get(b.id)!.name, 'Persistence Test');
+
+      // Update path (the success path that always worked): mutate then put again.
+      b.name = 'Renamed';
+      await box.put(b.id, b);
+      expect(box.values.length, 1,
+          reason: 'put() with same key updates, not inserts');
+      expect(box.get(b.id)!.name, 'Renamed');
+
+      await box.close();
     });
   });
 
