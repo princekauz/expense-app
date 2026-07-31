@@ -63,7 +63,9 @@ class AppThemes {
 
   static ThemeData materialThemeFor(int i) {
     final t = byIndex(i);
-    final scheme = ColorScheme.fromSeed(seedColor: t.seed, brightness: t.isDark ? Brightness.dark : Brightness.light);
+    final scheme = ColorScheme.fromSeed(
+        seedColor: t.seed,
+        brightness: t.isDark ? Brightness.dark : Brightness.light);
     return ThemeData(
       colorScheme: scheme,
       useMaterial3: true,
@@ -111,7 +113,13 @@ extension BoardStyleX on BoardStyle {
 }
 
 class AppCategories {
-  static const List<String> presets = ['Food', 'Travel', 'Bills', 'Shopping', 'Other'];
+  static const List<String> presets = [
+    'Food',
+    'Travel',
+    'Bills',
+    'Shopping',
+    'Other'
+  ];
 }
 
 class CategoryColors {

@@ -20,7 +20,8 @@ class BoardProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<Board> createBoard({required String name, int themeIndex = 0, int styleIndex = 0}) async {
+  Future<Board> createBoard(
+      {required String name, int themeIndex = 0, int styleIndex = 0}) async {
     final b = Board(
       id: _uuid.v4(),
       name: name,
@@ -51,7 +52,10 @@ class BoardProvider extends ChangeNotifier {
     refresh();
   }
 
-  Future<ExpenseRow> addRow(Board b, {required String label, required double amount, required String category}) async {
+  Future<ExpenseRow> addRow(Board b,
+      {required String label,
+      required double amount,
+      required String category}) async {
     final r = ExpenseRow(
       id: _uuid.v4(),
       label: label,
@@ -65,7 +69,8 @@ class BoardProvider extends ChangeNotifier {
     return r;
   }
 
-  Future<void> updateRow(Board b, ExpenseRow row, {String? label, double? amount, String? category}) async {
+  Future<void> updateRow(Board b, ExpenseRow row,
+      {String? label, double? amount, String? category}) async {
     if (label != null) row.label = label;
     if (amount != null) row.amount = amount;
     if (category != null) row.category = category;

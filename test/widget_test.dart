@@ -25,9 +25,24 @@ void main() {
         styleIndex: 0,
         createdAt: DateTime(2026, 1, 1),
         rows: [
-          ExpenseRow(id: 'r1', label: 'Lunch', amount: 12.50, category: 'Food', createdAt: DateTime(2026, 1, 1)),
-          ExpenseRow(id: 'r2', label: 'Dinner', amount: 30.00, category: 'Food', createdAt: DateTime(2026, 1, 1)),
-          ExpenseRow(id: 'r3', label: 'Train', amount: 8.25, category: 'Travel', createdAt: DateTime(2026, 1, 1)),
+          ExpenseRow(
+              id: 'r1',
+              label: 'Lunch',
+              amount: 12.50,
+              category: 'Food',
+              createdAt: DateTime(2026, 1, 1)),
+          ExpenseRow(
+              id: 'r2',
+              label: 'Dinner',
+              amount: 30.00,
+              category: 'Food',
+              createdAt: DateTime(2026, 1, 1)),
+          ExpenseRow(
+              id: 'r3',
+              label: 'Train',
+              amount: 8.25,
+              category: 'Travel',
+              createdAt: DateTime(2026, 1, 1)),
         ],
       );
       expect(b.total, 50.75);
@@ -53,7 +68,8 @@ void main() {
     });
 
     test('AppCategories has presets', () {
-      expect(AppCategories.presets, containsAll(['Food', 'Travel', 'Bills', 'Shopping', 'Other']));
+      expect(AppCategories.presets,
+          containsAll(['Food', 'Travel', 'Bills', 'Shopping', 'Other']));
     });
   });
 }

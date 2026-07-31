@@ -29,7 +29,8 @@ class CsvExporter {
   static Future<void> share(Board b) async {
     final dir = await getTemporaryDirectory();
     final safeName = b.name.replaceAll(RegExp(r'[^A-Za-z0-9_-]'), '_');
-    final file = File('${dir.path}/expense_${safeName}_${DateTime.now().millisecondsSinceEpoch}.csv');
+    final file = File(
+        '${dir.path}/expense_${safeName}_${DateTime.now().millisecondsSinceEpoch}.csv');
     await file.writeAsString(build(b));
     await Share.shareXFiles([XFile(file.path)], subject: 'Expenses: ${b.name}');
   }

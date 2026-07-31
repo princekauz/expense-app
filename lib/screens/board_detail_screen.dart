@@ -34,8 +34,10 @@ class _BoardDetailScreenState extends State<BoardDetailScreen> {
       ),
     );
     final t = AppThemes.byIndex(board.themeIndex);
-    final style = BoardStyle.values[board.styleIndex.clamp(0, BoardStyle.values.length - 1)];
-    final money = NumberFormat.currency(locale: 'en_US', symbol: '\$', decimalDigits: 2);
+    final style = BoardStyle
+        .values[board.styleIndex.clamp(0, BoardStyle.values.length - 1)];
+    final money =
+        NumberFormat.currency(locale: 'en_US', symbol: '\$', decimalDigits: 2);
 
     return Theme(
       data: AppThemes.materialThemeFor(board.themeIndex),
@@ -84,7 +86,9 @@ class _BoardDetailScreenState extends State<BoardDetailScreen> {
                       onSwipedAway: (row, index) async {
                         _lastDeletedRow = row;
                         _lastDeletedIndex = index;
-                        await context.read<BoardProvider>().deleteRow(board, row);
+                        await context
+                            .read<BoardProvider>()
+                            .deleteRow(board, row);
                         if (!context.mounted) return;
                         ScaffoldMessenger.of(context).clearSnackBars();
                         ScaffoldMessenger.of(context).showSnackBar(
@@ -94,11 +98,13 @@ class _BoardDetailScreenState extends State<BoardDetailScreen> {
                               label: 'Undo',
                               onPressed: () async {
                                 if (_lastDeletedRow != null) {
-                                  await context.read<BoardProvider>().restoreRow(
-                                    board,
-                                    _lastDeletedRow!,
-                                    _lastDeletedIndex ?? board.rows.length,
-                                  );
+                                  await context
+                                      .read<BoardProvider>()
+                                      .restoreRow(
+                                        board,
+                                        _lastDeletedRow!,
+                                        _lastDeletedIndex ?? board.rows.length,
+                                      );
                                 }
                               },
                             ),
@@ -122,7 +128,8 @@ class _BoardDetailScreenState extends State<BoardDetailScreen> {
       context: context,
       isScrollControlled: true,
       builder: (_) => Padding(
-        padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+        padding:
+            EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
         child: StatefulBuilder(
           builder: (ctx, setSt) => Padding(
             padding: const EdgeInsets.all(16),
@@ -130,23 +137,29 @@ class _BoardDetailScreenState extends State<BoardDetailScreen> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const Text('New entry', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
+                const Text('New entry',
+                    style:
+                        TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
                 const SizedBox(height: 12),
                 TextField(
                   controller: labelCtrl,
                   autofocus: true,
-                  decoration: const InputDecoration(labelText: 'What did you spend on?'),
+                  decoration: const InputDecoration(
+                      labelText: 'What did you spend on?'),
                   textInputAction: TextInputAction.next,
                 ),
                 const SizedBox(height: 8),
                 TextField(
                   controller: amountCtrl,
                   autofocus: false,
-                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  keyboardType:
+                      const TextInputType.numberWithOptions(decimal: true),
                   inputFormatters: [
-                    FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d{0,2}')),
+                    FilteringTextInputFormatter.allow(
+                        RegExp(r'^\d*\.?\d{0,2}')),
                   ],
-                  decoration: const InputDecoration(labelText: 'Amount', prefixText: '\$ '),
+                  decoration: const InputDecoration(
+                      labelText: 'Amount', prefixText: '\$ '),
                 ),
                 const SizedBox(height: 12),
                 DropdownButtonFormField<String>(
@@ -172,7 +185,8 @@ class _BoardDetailScreenState extends State<BoardDetailScreen> {
                       child: FilledButton(
                         onPressed: () {
                           final label = labelCtrl.text.trim();
-                          final amt = double.tryParse(amountCtrl.text.trim()) ?? 0;
+                          final amt =
+                              double.tryParse(amountCtrl.text.trim()) ?? 0;
                           if (label.isEmpty || amt <= 0) return;
                           Navigator.pop(ctx, true);
                         },
@@ -208,7 +222,9 @@ class _BoardDetailScreenState extends State<BoardDetailScreen> {
         title: const Text('Rename board'),
         content: TextField(controller: controller, autofocus: true),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+          TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel')),
           FilledButton(
             onPressed: () {
               final n = controller.text.trim();
@@ -238,7 +254,9 @@ class _BoardDetailScreenState extends State<BoardDetailScreen> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const Text('Theme', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+                const Text('Theme',
+                    style:
+                        TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
                 const SizedBox(height: 8),
                 Wrap(
                   spacing: 8,
@@ -253,7 +271,9 @@ class _BoardDetailScreenState extends State<BoardDetailScreen> {
                           decoration: BoxDecoration(
                             color: AppThemes.all[i].scaffold,
                             border: Border.all(
-                              color: themeIdx == i ? AppThemes.all[i].accent : Colors.black12,
+                              color: themeIdx == i
+                                  ? AppThemes.all[i].accent
+                                  : Colors.black12,
                               width: themeIdx == i ? 3 : 1,
                             ),
                             borderRadius: BorderRadius.circular(8),
@@ -273,12 +293,15 @@ class _BoardDetailScreenState extends State<BoardDetailScreen> {
                   ],
                 ),
                 const SizedBox(height: 16),
-                const Text('Style', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+                const Text('Style',
+                    style:
+                        TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
                 const SizedBox(height: 8),
                 SegmentedButton<int>(
                   segments: [
                     for (int i = 0; i < BoardStyle.values.length; i++)
-                      ButtonSegment(value: i, label: Text(BoardStyle.values[i].label)),
+                      ButtonSegment(
+                          value: i, label: Text(BoardStyle.values[i].label)),
                   ],
                   selected: {styleIdx},
                   onSelectionChanged: (s) => setSt(() => styleIdx = s.first),
@@ -286,7 +309,9 @@ class _BoardDetailScreenState extends State<BoardDetailScreen> {
                 const SizedBox(height: 16),
                 FilledButton(
                   onPressed: () {
-                    context.read<BoardProvider>().setBoardTheme(b, themeIdx, styleIdx);
+                    context
+                        .read<BoardProvider>()
+                        .setBoardTheme(b, themeIdx, styleIdx);
                     Navigator.pop(ctx);
                   },
                   child: const Text('Apply'),
@@ -312,11 +337,15 @@ class _EmptyBoard extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.receipt_long_outlined, size: 64, color: t.onSurface.withOpacity(0.4)),
+            Icon(Icons.receipt_long_outlined,
+                size: 64, color: t.onSurface.withOpacity(0.4)),
             const SizedBox(height: 12),
             Text(
               'No entries yet',
-              style: TextStyle(color: t.onSurface, fontSize: 18, fontWeight: FontWeight.w600),
+              style: TextStyle(
+                  color: t.onSurface,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600),
             ),
             const SizedBox(height: 4),
             Text(
@@ -375,7 +404,11 @@ class _RowTile extends StatelessWidget {
   final BoardStyle style;
   final BoardTheme t;
   final NumberFormat money;
-  const _RowTile({required this.row, required this.style, required this.t, required this.money});
+  const _RowTile(
+      {required this.row,
+      required this.style,
+      required this.t,
+      required this.money});
 
   @override
   Widget build(BuildContext context) {
@@ -387,7 +420,8 @@ class _RowTile extends StatelessWidget {
           Container(
             width: 4,
             height: 28,
-            decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(2)),
+            decoration: BoxDecoration(
+                color: color, borderRadius: BorderRadius.circular(2)),
           ),
           const SizedBox(width: 10),
           Expanded(
@@ -396,21 +430,26 @@ class _RowTile extends StatelessWidget {
               children: [
                 Text(
                   row.label,
-                  style: TextStyle(color: t.onSurface, fontSize: 15, fontWeight: FontWeight.w500),
+                  style: TextStyle(
+                      color: t.onSurface,
+                      fontSize: 15,
+                      fontWeight: FontWeight.w500),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
                 const SizedBox(height: 2),
                 Text(
                   row.category,
-                  style: TextStyle(color: t.onSurface.withOpacity(0.5), fontSize: 11),
+                  style: TextStyle(
+                      color: t.onSurface.withOpacity(0.5), fontSize: 11),
                 ),
               ],
             ),
           ),
           Text(
             money.format(row.amount),
-            style: TextStyle(color: t.onSurface, fontSize: 16, fontWeight: FontWeight.w700),
+            style: TextStyle(
+                color: t.onSurface, fontSize: 16, fontWeight: FontWeight.w700),
           ),
         ],
       ),
@@ -431,7 +470,10 @@ class _RowTile extends StatelessWidget {
               )
             : const BoxDecoration(); // minimal — no decoration, no divider
 
-    return Container(margin: const EdgeInsets.symmetric(vertical: 2), decoration: base, child: content);
+    return Container(
+        margin: const EdgeInsets.symmetric(vertical: 2),
+        decoration: base,
+        child: content);
   }
 }
 
@@ -441,13 +483,18 @@ class _TotalBar extends StatelessWidget {
   final BoardStyle style;
   final NumberFormat money;
 
-  const _TotalBar({required this.board, required this.t, required this.style, required this.money});
+  const _TotalBar(
+      {required this.board,
+      required this.t,
+      required this.style,
+      required this.money});
 
   @override
   Widget build(BuildContext context) {
     final totals = board.totalsByCategory();
     final total = board.total;
-    final topEntries = totals.entries.toList()..sort((a, b) => b.value.compareTo(a.value));
+    final topEntries = totals.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
     final top3 = topEntries.take(3).toList();
 
     return SafeArea(
@@ -471,7 +518,8 @@ class _TotalBar extends StatelessWidget {
                           flex: (e.value * 100).round().clamp(1, 1000),
                           child: Container(
                             height: 4,
-                            margin: EdgeInsets.only(right: top3.last == e ? 0 : 2),
+                            margin:
+                                EdgeInsets.only(right: top3.last == e ? 0 : 2),
                             decoration: BoxDecoration(
                               color: CategoryColors.of(e.key),
                               borderRadius: BorderRadius.circular(2),
@@ -487,7 +535,8 @@ class _TotalBar extends StatelessWidget {
                               height: 4,
                               margin: const EdgeInsets.only(right: 2),
                               decoration: BoxDecoration(
-                                color: CategoryColors.of(e.key).withOpacity(0.4),
+                                color:
+                                    CategoryColors.of(e.key).withOpacity(0.4),
                                 borderRadius: BorderRadius.circular(2),
                               ),
                             ),

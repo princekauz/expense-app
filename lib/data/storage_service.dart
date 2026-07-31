@@ -38,6 +38,7 @@ class StorageService {
   int getThemeIndex() => settingsBox.get('themeIndex', defaultValue: 0) as int;
   Future<void> setThemeIndex(int v) async => settingsBox.put('themeIndex', v);
 
-  String getCurrency() => settingsBox.get('currency', defaultValue: 'USD') as String;
+  String getCurrency() =>
+      settingsBox.get('currency', defaultValue: 'USD') as String;
   Future<void> setCurrency(String c) async => settingsBox.put('currency', c);
 }

@@ -47,7 +47,9 @@ class BoardsListScreen extends StatelessWidget {
           ),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+          TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel')),
           FilledButton(
             onPressed: () {
               final name = controller.text.trim();
@@ -76,7 +78,8 @@ class _EmptyState extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.note_alt_outlined, size: 72, color: Theme.of(context).colorScheme.outline),
+            Icon(Icons.note_alt_outlined,
+                size: 72, color: Theme.of(context).colorScheme.outline),
             const SizedBox(height: 16),
             Text(
               'No boards yet',
@@ -102,7 +105,8 @@ class _BoardTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final t = AppThemes.byIndex(board.themeIndex);
-    final style = BoardStyle.values[board.styleIndex.clamp(0, BoardStyle.values.length - 1)];
+    final style = BoardStyle
+        .values[board.styleIndex.clamp(0, BoardStyle.values.length - 1)];
     return Material(
       color: t.surface,
       borderRadius: BorderRadius.circular(12),
@@ -110,7 +114,8 @@ class _BoardTile extends StatelessWidget {
         borderRadius: BorderRadius.circular(12),
         onTap: () {
           Navigator.of(context).push(
-            MaterialPageRoute(builder: (_) => BoardDetailScreen(boardId: board.id)),
+            MaterialPageRoute(
+                builder: (_) => BoardDetailScreen(boardId: board.id)),
           );
         },
         onLongPress: () => _showBoardMenu(context),
@@ -211,7 +216,9 @@ class _BoardTile extends StatelessWidget {
         title: const Text('Rename board'),
         content: TextField(controller: controller, autofocus: true),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+          TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel')),
           FilledButton(
             onPressed: () {
               final n = controller.text.trim();
@@ -228,14 +235,18 @@ class _BoardTile extends StatelessWidget {
     }
   }
 
-  Future<void> _confirmDelete(BuildContext context, BoardProvider provider) async {
+  Future<void> _confirmDelete(
+      BuildContext context, BoardProvider provider) async {
     final ok = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
         title: Text('Delete "${board.name}"?'),
-        content: const Text('This will remove the board and all its entries. This cannot be undone.'),
+        content: const Text(
+            'This will remove the board and all its entries. This cannot be undone.'),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
+          TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Cancel')),
           FilledButton(
             style: FilledButton.styleFrom(backgroundColor: Colors.red),
             onPressed: () => Navigator.pop(context, true),
