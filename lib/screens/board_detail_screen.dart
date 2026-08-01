@@ -144,7 +144,20 @@ class _BoardDetailScreenState extends State<BoardDetailScreen> {
     );
   }
 
+  /// Re-resolve a board reference against the provider. Use this at the top of
+  /// any callback that received a [Board] captured from a previous build —
+  /// after `notifyListeners()` the in-memory list may have been spliced with a
+  /// freshly-deserialized copy from Hive, so the captured ref is stale.
+  Board _fresh(String id) {
+    final p = context.read<BoardProvider>();
+    return p.boards.firstWhere(
+      (b) => b.id == id,
+      orElse: () => throw StateError('Board $id not found'),
+    );
+  }
+
   Future<void> _onSwipedAway(Board b, ExpenseRow row, int index) async {
+    b = _fresh(b.id);
     _lastDeletedRow = row;
     _lastDeletedIndex = index;
     await context.read<BoardProvider>().deleteRow(b, row);
@@ -170,6 +183,7 @@ class _BoardDetailScreenState extends State<BoardDetailScreen> {
   }
 
   Future<void> _quickAddRow(Board b) async {
+    b = _fresh(b.id);
     final result = await showModalBottomSheet<_AddRowResult>(
       context: context,
       isScrollControlled: true,
@@ -187,6 +201,7 @@ class _BoardDetailScreenState extends State<BoardDetailScreen> {
   }
 
   Future<void> _renameBoard(Board b) async {
+    b = _fresh(b.id);
     final controller = TextEditingController(text: b.name);
     final res = await showDialog<String>(
       context: context,
@@ -214,6 +229,7 @@ class _BoardDetailScreenState extends State<BoardDetailScreen> {
   }
 
   Future<void> _showStyleSheet(Board b) async {
+    b = _fresh(b.id);
     int themeIdx = b.themeIndex;
     int styleIdx = b.styleIndex;
     await showModalBottomSheet(
@@ -297,6 +313,7 @@ class _BoardDetailScreenState extends State<BoardDetailScreen> {
   }
 
   Future<void> _showRecurringSheet(Board b) async {
+    b = _fresh(b.id);
     await showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -745,6 +762,11 @@ class _TotalBar extends StatelessWidget {
           color: t.surface,
           border: Border(top: BorderSide(color: t.divider, width: 1)),
         ),
+        // Bottom margin clears the FAB extended (~56) + breathing room so the
+        // FAB doesn't sit on top of the total label.
+        margin: EdgeInsets.only(
+          bottom: 72 + MediaQuery.of(context).viewPadding.bottom,
+        ),
         child: Padding(
           padding: const EdgeInsets.fromLTRB(16, 10, 16, 12),
           child: Column(
@@ -1047,6 +1069,12 @@ class _RecurringSheetState extends State<_RecurringSheet> {
   }
 
   Future<void> _addRecurring(BuildContext context, Board b) async {
+    // Re-resolve from the provider — `b` captured by the bottom-sheet closure may
+    // be a stale reference (Hive splice). Mutations must hit the live instance.
+    b = context.read<BoardProvider>().boards.firstWhere(
+          (x) => x.id == b.id,
+          orElse: () => throw StateError('Board ${b.id} not found'),
+        );
     // Capture provider BEFORE any await so we never use BuildContext across async gaps.
     final provider = context.read<BoardProvider>();
     final labelCtrl = TextEditingController();

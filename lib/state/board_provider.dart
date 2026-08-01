@@ -23,13 +23,36 @@ class BoardProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Re-read a board from the box (so we hold the canonical, freshly-deserialized
+  /// instance) and splice it into [_boards] in place of the old reference.
+  ///
+  /// This is required because Hive's `box.put()` can internally invalidate the
+  /// boxed object reference on some Hive versions — the in-memory object we
+  /// mutated is no longer the same object the box stores. Without this,
+  /// subsequent reads of `provider.boards` would still return the stale instance.
+  Board _reloadAndSplice(String id) {
+    final fresh = _storage.boardsBox.get(id);
+    if (fresh == null) {
+      // Defensive: board was deleted under us — drop the in-memory copy too.
+      _boards.removeWhere((b) => b.id == id);
+      throw StateError('Board $id vanished from storage');
+    }
+    final idx = _boards.indexWhere((b) => b.id == id);
+    if (idx >= 0) {
+      _boards[idx] = fresh;
+    } else {
+      _boards.add(fresh);
+      _boards.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+    }
+    return fresh;
+  }
+
   void _materializeAll() {
     var any = false;
     for (final b in _boards) {
       if (b.recurring.isNotEmpty) {
         final added = RecurrenceEngine.materialize(b);
         if (added > 0) any = true;
-        // sort by date so future-dated items appear in chronological position
         b.rows.sort((a, b) => a.date.compareTo(b.date));
         _storage.saveBoard(b);
       }
@@ -61,6 +84,7 @@ class BoardProvider extends ChangeNotifier {
   Future<void> renameBoard(Board b, String newName) async {
     b.name = newName;
     await _storage.saveBoard(b);
+    _reloadAndSplice(b.id);
     notifyListeners();
   }
 
@@ -68,12 +92,14 @@ class BoardProvider extends ChangeNotifier {
     b.themeIndex = themeIndex;
     b.styleIndex = styleIndex;
     await _storage.saveBoard(b);
+    _reloadAndSplice(b.id);
     notifyListeners();
   }
 
   Future<void> setBoardBudget(Board b, double? budget) async {
     b.budget = budget;
     await _storage.saveBoard(b);
+    _reloadAndSplice(b.id);
     notifyListeners();
   }
 
@@ -101,6 +127,7 @@ class BoardProvider extends ChangeNotifier {
     b.rows.add(r);
     b.rows.sort((a, b) => a.date.compareTo(b.date));
     await _storage.saveBoard(b);
+    _reloadAndSplice(b.id);
     notifyListeners();
     return r;
   }
@@ -119,12 +146,14 @@ class BoardProvider extends ChangeNotifier {
     if (date != null) row.date = date;
     b.rows.sort((a, b) => a.date.compareTo(b.date));
     await _storage.saveBoard(b);
+    _reloadAndSplice(b.id);
     notifyListeners();
   }
 
   Future<void> deleteRow(Board b, ExpenseRow row) async {
     b.rows.removeWhere((r) => r.id == row.id);
     await _storage.saveBoard(b);
+    _reloadAndSplice(b.id);
     notifyListeners();
   }
 
@@ -136,6 +165,7 @@ class BoardProvider extends ChangeNotifier {
     }
     b.rows.sort((a, b) => a.date.compareTo(b.date));
     await _storage.saveBoard(b);
+    _reloadAndSplice(b.id);
     notifyListeners();
   }
 
@@ -165,6 +195,7 @@ class BoardProvider extends ChangeNotifier {
     );
     b.recurring.add(tpl);
     await _storage.saveBoard(b);
+    _reloadAndSplice(b.id);
     notifyListeners();
     return tpl;
   }
@@ -174,6 +205,7 @@ class BoardProvider extends ChangeNotifier {
     // NOTE: materialized rows in b.rows are NOT deleted — they're historical
     // entries the user already saw. Future instances will no longer be added.
     await _storage.saveBoard(b);
+    _reloadAndSplice(b.id);
     notifyListeners();
   }
 }
