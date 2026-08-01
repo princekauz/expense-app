@@ -4,10 +4,13 @@ import 'package:uuid/uuid.dart';
 import '../data/recurrence_engine.dart';
 import '../data/storage_service.dart';
 import '../models/board.dart';
+import '../util/app_log.dart';
 
 class BoardProvider extends ChangeNotifier {
   BoardProvider(this._storage) {
     _boards = _storage.getAllBoards();
+    AppLog.instance.log('BoardProvider init: loaded ${_boards.length} boards',
+        tag: 'provider');
     _materializeAll();
   }
 
@@ -92,7 +95,10 @@ class BoardProvider extends ChangeNotifier {
     b.themeIndex = themeIndex;
     b.styleIndex = styleIndex;
     await _storage.saveBoard(b);
-    _reloadAndSplice(b.id);
+    final fresh = _reloadAndSplice(b.id);
+    AppLog.instance.log(
+        'setBoardTheme: theme=$themeIndex style=$styleIndex b===fresh?=${identical(b, fresh)} fresh.themeIndex=${fresh.themeIndex}',
+        tag: 'provider');
     notifyListeners();
   }
 
@@ -194,8 +200,14 @@ class BoardProvider extends ChangeNotifier {
       ),
     );
     b.recurring.add(tpl);
+    AppLog.instance.log(
+        'addRecurring: pre-save board.b.id=${b.id} recurring.count=${b.recurring.length} b.hashCode=${b.hashCode}',
+        tag: 'provider');
     await _storage.saveBoard(b);
-    _reloadAndSplice(b.id);
+    final fresh = _reloadAndSplice(b.id);
+    AppLog.instance.log(
+        'addRecurring: post-splice fresh.recurring.count=${fresh.recurring.length} fresh.hashCode=${fresh.hashCode} b===fresh?=${identical(b, fresh)}',
+        tag: 'provider');
     notifyListeners();
     return tpl;
   }

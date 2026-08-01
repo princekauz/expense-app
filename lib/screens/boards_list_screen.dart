@@ -5,6 +5,7 @@ import '../models/board.dart';
 import '../state/board_provider.dart';
 import '../theme/app_themes.dart';
 import 'board_detail_screen.dart';
+import 'log_screen.dart';
 
 class BoardsListScreen extends StatelessWidget {
   const BoardsListScreen({super.key});
@@ -16,6 +17,15 @@ class BoardsListScreen extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Expense'),
+        actions: [
+          IconButton(
+            tooltip: 'Log',
+            icon: const Icon(Icons.bug_report_outlined),
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const LogScreen()),
+            ),
+          ),
+        ],
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _showNewBoardDialog(context),
