@@ -50,6 +50,11 @@ class _BoardDetailScreenState extends State<BoardDetailScreen> {
           iconTheme: IconThemeData(color: t.onSurface),
           actions: [
             IconButton(
+              tooltip: 'Recurring',
+              icon: const Icon(Icons.repeat),
+              onPressed: () => _showRecurringSheet(board),
+            ),
+            IconButton(
               tooltip: 'Style & theme',
               icon: const Icon(Icons.palette_outlined),
               onPressed: () => _showStyleSheet(board),
@@ -66,157 +71,124 @@ class _BoardDetailScreenState extends State<BoardDetailScreen> {
             ),
           ],
         ),
-        floatingActionButton: FloatingActionButton.extended(
-          backgroundColor: t.accent,
-          foregroundColor: Colors.white,
-          onPressed: () => _quickAddRow(board),
-          icon: const Icon(Icons.add),
-          label: const Text('Add'),
+        floatingActionButton: Padding(
+          // Push FAB up above the gesture-bar inset on gesture-nav devices.
+          padding: EdgeInsets.only(
+              bottom: MediaQuery.of(context).viewPadding.bottom),
+          child: FloatingActionButton.extended(
+            backgroundColor: t.accent,
+            foregroundColor: Colors.white,
+            onPressed: () => _quickAddRow(board),
+            icon: const Icon(Icons.add),
+            label: const Text('Add'),
+          ),
         ),
         body: Column(
           children: [
             Expanded(
-              child: board.rows.isEmpty
+              child: board.rows.isEmpty && board.recurring.isEmpty
                   ? _EmptyBoard(t: t)
-                  : _RowList(
-                      board: board,
-                      style: style,
-                      t: t,
-                      money: money,
-                      onSwipedAway: (row, index) async {
-                        _lastDeletedRow = row;
-                        _lastDeletedIndex = index;
-                        await context
-                            .read<BoardProvider>()
-                            .deleteRow(board, row);
-                        if (!context.mounted) return;
-                        ScaffoldMessenger.of(context).clearSnackBars();
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text('Deleted "${row.label}"'),
-                            action: SnackBarAction(
-                              label: 'Undo',
-                              onPressed: () async {
-                                if (_lastDeletedRow != null) {
-                                  await context
-                                      .read<BoardProvider>()
-                                      .restoreRow(
-                                        board,
-                                        _lastDeletedRow!,
-                                        _lastDeletedIndex ?? board.rows.length,
-                                      );
-                                }
-                              },
-                            ),
+                  : CustomScrollView(
+                      slivers: [
+                        if (board.recurring.isNotEmpty)
+                          SliverToBoxAdapter(
+                            child: _RecurringSection(
+                                board: board, t: t, money: money),
                           ),
-                        );
-                      },
+                        SliverPadding(
+                          // Bottom padding = FAB height (~56) + safe-area inset + breathing room.
+                          padding: EdgeInsets.only(
+                            left: 0,
+                            right: 0,
+                            top: 4,
+                            bottom:
+                                80 + MediaQuery.of(context).viewPadding.bottom,
+                          ),
+                          sliver: board.rows.isEmpty
+                              ? const SliverToBoxAdapter(
+                                  child: SizedBox.shrink())
+                              : SliverList.builder(
+                                  itemCount: board.rows.length,
+                                  itemBuilder: (_, i) {
+                                    final r = board.rows[i];
+                                    return Dismissible(
+                                      key: ValueKey(r.id),
+                                      direction: DismissDirection.endToStart,
+                                      background: Container(
+                                        alignment: Alignment.centerRight,
+                                        padding: const EdgeInsets.symmetric(
+                                            horizontal: 16),
+                                        color: Colors.red.withOpacity(0.85),
+                                        child: const Icon(Icons.delete_outline,
+                                            color: Colors.white),
+                                      ),
+                                      onDismissed: (_) =>
+                                          _onSwipedAway(board, r, i),
+                                      child: _RowTile(
+                                        row: r,
+                                        style: style,
+                                        t: t,
+                                        money: money,
+                                      ),
+                                    );
+                                  },
+                                ),
+                        ),
+                      ],
                     ),
             ),
-            _TotalBar(board: board, t: t, style: style, money: money),
+            _TotalBar(board: board, t: t, money: money),
           ],
         ),
       ),
     );
   }
 
-  Future<void> _quickAddRow(Board b) async {
-    final labelCtrl = TextEditingController();
-    final amountCtrl = TextEditingController();
-    String category = AppCategories.presets.first;
-    final saved = await showModalBottomSheet<bool>(
-      context: context,
-      isScrollControlled: true,
-      builder: (_) => Padding(
-        padding:
-            EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
-        child: StatefulBuilder(
-          builder: (ctx, setSt) => Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                const Text('New entry',
-                    style:
-                        TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: labelCtrl,
-                  autofocus: true,
-                  decoration: const InputDecoration(
-                      labelText: 'What did you spend on?'),
-                  textInputAction: TextInputAction.next,
-                ),
-                const SizedBox(height: 8),
-                TextField(
-                  controller: amountCtrl,
-                  autofocus: false,
-                  keyboardType:
-                      const TextInputType.numberWithOptions(decimal: true),
-                  inputFormatters: [
-                    FilteringTextInputFormatter.allow(
-                        RegExp(r'^\d*\.?\d{0,2}')),
-                  ],
-                  decoration: const InputDecoration(
-                      labelText: 'Amount', prefixText: '\$ '),
-                ),
-                const SizedBox(height: 12),
-                DropdownButtonFormField<String>(
-                  value: category,
-                  decoration: const InputDecoration(labelText: 'Category'),
-                  items: [
-                    for (final c in AppCategories.presets)
-                      DropdownMenuItem(value: c, child: Text(c)),
-                  ],
-                  onChanged: (v) => setSt(() => category = v ?? category),
-                ),
-                const SizedBox(height: 16),
-                Row(
-                  children: [
-                    Expanded(
-                      child: OutlinedButton(
-                        onPressed: () => Navigator.pop(ctx, false),
-                        child: const Text('Cancel'),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: FilledButton(
-                        onPressed: () {
-                          final label = labelCtrl.text.trim();
-                          final amt =
-                              double.tryParse(amountCtrl.text.trim()) ?? 0;
-                          if (label.isEmpty || amt <= 0) return;
-                          Navigator.pop(ctx, true);
-                        },
-                        child: const Text('Add'),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
+  Future<void> _onSwipedAway(Board b, ExpenseRow row, int index) async {
+    _lastDeletedRow = row;
+    _lastDeletedIndex = index;
+    await context.read<BoardProvider>().deleteRow(b, row);
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).clearSnackBars();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Deleted "${row.label}"'),
+        action: SnackBarAction(
+          label: 'Undo',
+          onPressed: () async {
+            if (_lastDeletedRow != null) {
+              await context.read<BoardProvider>().restoreRow(
+                    b,
+                    _lastDeletedRow!,
+                    _lastDeletedIndex ?? b.rows.length,
+                  );
+            }
+          },
         ),
       ),
     );
-    if (saved == true && mounted) {
-      final amt = double.tryParse(amountCtrl.text.trim()) ?? 0;
-      if (labelCtrl.text.trim().isNotEmpty && amt > 0) {
-        await context.read<BoardProvider>().addRow(
-              b,
-              label: labelCtrl.text.trim(),
-              amount: amt,
-              category: category,
-            );
-      }
-    }
+  }
+
+  Future<void> _quickAddRow(Board b) async {
+    final result = await showModalBottomSheet<_AddRowResult>(
+      context: context,
+      isScrollControlled: true,
+      builder: (_) =>
+          _AddRowSheet(initialCategory: AppCategories.presets.first),
+    );
+    if (result == null || !mounted) return;
+    await context.read<BoardProvider>().addRow(
+          b,
+          label: result.label,
+          amount: result.amount,
+          category: result.category,
+          date: result.date,
+        );
   }
 
   Future<void> _renameBoard(Board b) async {
     final controller = TextEditingController(text: b.name);
-    final result = await showDialog<String>(
+    final res = await showDialog<String>(
       context: context,
       builder: (_) => AlertDialog(
         title: const Text('Rename board'),
@@ -236,8 +208,8 @@ class _BoardDetailScreenState extends State<BoardDetailScreen> {
         ],
       ),
     );
-    if (result != null && mounted) {
-      await context.read<BoardProvider>().renameBoard(b, result);
+    if (res != null && mounted) {
+      await context.read<BoardProvider>().renameBoard(b, res);
     }
   }
 
@@ -323,6 +295,242 @@ class _BoardDetailScreenState extends State<BoardDetailScreen> {
       ),
     );
   }
+
+  Future<void> _showRecurringSheet(Board b) async {
+    await showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (_) => _RecurringSheet(board: b),
+    );
+  }
+}
+
+class _AddRowResult {
+  final String label;
+  final double amount;
+  final String category;
+  final DateTime date;
+  _AddRowResult(
+      {required this.label,
+      required this.amount,
+      required this.category,
+      required this.date});
+}
+
+class _AddRowSheet extends StatefulWidget {
+  final String initialCategory;
+  const _AddRowSheet({required this.initialCategory});
+
+  @override
+  State<_AddRowSheet> createState() => _AddRowSheetState();
+}
+
+class _AddRowSheetState extends State<_AddRowSheet> {
+  final _labelCtrl = TextEditingController();
+  final _amountCtrl = TextEditingController();
+  late String _category = widget.initialCategory;
+  late DateTime _date = DateTime.now();
+  bool _isPlanned = false;
+
+  @override
+  void dispose() {
+    _labelCtrl.dispose();
+    _amountCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _pickDate() async {
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _date,
+      firstDate: DateTime.now().subtract(const Duration(days: 365 * 2)),
+      lastDate: DateTime.now().add(const Duration(days: 365 * 5)),
+    );
+    if (picked != null) {
+      setState(() {
+        _date = picked;
+        _isPlanned = _date.isAfter(_today());
+      });
+    }
+  }
+
+  DateTime _today() {
+    final n = DateTime.now();
+    return DateTime(n.year, n.month, n.day);
+  }
+
+  String _dateLabel() {
+    final today = _today();
+    final d = DateTime(_date.year, _date.month, _date.day);
+    if (d == today) return 'Today';
+    if (d == today.add(const Duration(days: 1))) return 'Tomorrow';
+    if (d == today.subtract(const Duration(days: 1))) return 'Yesterday';
+    return DateFormat.yMMMd().format(_date);
+  }
+
+  void _submit() {
+    final label = _labelCtrl.text.trim();
+    final amt = double.tryParse(_amountCtrl.text.trim()) ?? 0;
+    if (label.isEmpty || amt <= 0) return;
+    Navigator.pop(
+      context,
+      _AddRowResult(
+          label: label, amount: amt, category: _category, date: _date),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final viewInsets = MediaQuery.of(context).viewInsets.bottom;
+    return Padding(
+      padding: EdgeInsets.only(bottom: viewInsets),
+      child: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Row(
+                children: [
+                  const Expanded(
+                    child: Text(
+                      'New entry',
+                      style:
+                          TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close),
+                    onPressed: () => Navigator.pop(context),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              TextField(
+                controller: _labelCtrl,
+                autofocus: true,
+                decoration:
+                    const InputDecoration(labelText: 'What did you spend on?'),
+                textInputAction: TextInputAction.next,
+                onSubmitted: (_) => _submit(),
+              ),
+              const SizedBox(height: 8),
+              TextField(
+                controller: _amountCtrl,
+                keyboardType:
+                    const TextInputType.numberWithOptions(decimal: true),
+                inputFormatters: [
+                  FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d{0,2}')),
+                ],
+                decoration: const InputDecoration(
+                    labelText: 'Amount', prefixText: '\$ '),
+                onSubmitted: (_) => _submit(),
+              ),
+              const SizedBox(height: 12),
+              DropdownButtonFormField<String>(
+                value: _category,
+                decoration: const InputDecoration(labelText: 'Category'),
+                items: [
+                  for (final c in AppCategories.presets)
+                    DropdownMenuItem(value: c, child: Text(c)),
+                ],
+                onChanged: (v) => setState(() => _category = v ?? _category),
+              ),
+              const SizedBox(height: 12),
+              InkWell(
+                onTap: _pickDate,
+                borderRadius: BorderRadius.circular(8),
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                  decoration: BoxDecoration(
+                    border: Border.all(
+                        color: Theme.of(context).colorScheme.outlineVariant),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        _isPlanned
+                            ? Icons.event_outlined
+                            : Icons.today_outlined,
+                        color: _isPlanned ? Colors.orange : null,
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              _dateLabel(),
+                              style: const TextStyle(
+                                  fontSize: 15, fontWeight: FontWeight.w500),
+                            ),
+                            if (_isPlanned)
+                              Text(
+                                'planned — counts toward budget',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: Colors.orange.shade700,
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+                      const Text(
+                        'Change',
+                        style: TextStyle(fontSize: 12, color: Colors.blue),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              if (_isPlanned)
+                Padding(
+                  padding: const EdgeInsets.only(top: 8),
+                  child: Wrap(
+                    spacing: 8,
+                    children: [
+                      ActionChip(
+                        label: const Text('Today'),
+                        onPressed: () => setState(() {
+                          _date = _today();
+                          _isPlanned = false;
+                        }),
+                      ),
+                      ActionChip(
+                        label: const Text('Tomorrow'),
+                        onPressed: () => setState(() {
+                          _date = _today().add(const Duration(days: 1));
+                          _isPlanned = true;
+                        }),
+                      ),
+                    ],
+                  ),
+                ),
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: const Text('Cancel'),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: FilledButton(
+                        onPressed: _submit, child: const Text('Add')),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 class _EmptyBoard extends StatelessWidget {
@@ -349,7 +557,8 @@ class _EmptyBoard extends StatelessWidget {
             ),
             const SizedBox(height: 4),
             Text(
-              'Tap "Add" to log an expense.',
+              'Tap "Add" to log a past, current, or planned expense.',
+              textAlign: TextAlign.center,
               style: TextStyle(color: t.onSurface.withOpacity(0.6)),
             ),
           ],
@@ -359,62 +568,26 @@ class _EmptyBoard extends StatelessWidget {
   }
 }
 
-class _RowList extends StatelessWidget {
-  final Board board;
-  final BoardStyle style;
-  final BoardTheme t;
-  final NumberFormat money;
-  final Future<void> Function(ExpenseRow row, int index) onSwipedAway;
-
-  const _RowList({
-    required this.board,
-    required this.style,
-    required this.t,
-    required this.money,
-    required this.onSwipedAway,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final rows = board.rows;
-    return ListView.builder(
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-      itemCount: rows.length,
-      itemBuilder: (_, i) {
-        final r = rows[i];
-        return Dismissible(
-          key: ValueKey(r.id),
-          direction: DismissDirection.endToStart,
-          background: Container(
-            alignment: Alignment.centerRight,
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            color: Colors.red.withOpacity(0.85),
-            child: const Icon(Icons.delete_outline, color: Colors.white),
-          ),
-          onDismissed: (_) => onSwipedAway(r, i),
-          child: _RowTile(row: r, style: style, t: t, money: money),
-        );
-      },
-    );
-  }
-}
-
 class _RowTile extends StatelessWidget {
   final ExpenseRow row;
   final BoardStyle style;
   final BoardTheme t;
   final NumberFormat money;
-  const _RowTile(
-      {required this.row,
-      required this.style,
-      required this.t,
-      required this.money});
+  const _RowTile({
+    required this.row,
+    required this.style,
+    required this.t,
+    required this.money,
+  });
 
   @override
   Widget build(BuildContext context) {
     final color = CategoryColors.of(row.category);
+    final isFuture = row.isFuture;
+    final plannedLabel = isFuture ? _futureLabel(row.date) : null;
+
     final content = Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       child: Row(
         children: [
           Container(
@@ -428,20 +601,61 @@ class _RowTile extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  row.label,
-                  style: TextStyle(
-                      color: t.onSurface,
-                      fontSize: 15,
-                      fontWeight: FontWeight.w500),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        row.label,
+                        style: TextStyle(
+                          color: t.onSurface.withOpacity(isFuture ? 0.85 : 1.0),
+                          fontSize: 15,
+                          fontWeight: FontWeight.w500,
+                          fontStyle:
+                              isFuture ? FontStyle.italic : FontStyle.normal,
+                          decoration: isFuture
+                              ? TextDecoration.underline
+                              : TextDecoration.none,
+                          decorationStyle:
+                              isFuture ? TextDecorationStyle.dotted : null,
+                          decorationColor: t.onSurface.withOpacity(0.4),
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    if (plannedLabel != null) ...[
+                      const SizedBox(width: 6),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: Colors.orange.withOpacity(0.15),
+                          borderRadius: BorderRadius.circular(4),
+                          border: Border.all(
+                              color: Colors.orange.withOpacity(0.4),
+                              width: 0.5),
+                        ),
+                        child: Text(
+                          plannedLabel,
+                          style: TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.orange.shade800,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  row.category,
+                  isFuture
+                      ? '${row.category} • ${DateFormat.MMMd().format(row.date)}'
+                      : row.category,
                   style: TextStyle(
-                      color: t.onSurface.withOpacity(0.5), fontSize: 11),
+                    color: t.onSurface.withOpacity(0.5),
+                    fontSize: 11,
+                  ),
                 ),
               ],
             ),
@@ -449,7 +663,10 @@ class _RowTile extends StatelessWidget {
           Text(
             money.format(row.amount),
             style: TextStyle(
-                color: t.onSurface, fontSize: 16, fontWeight: FontWeight.w700),
+              color: t.onSurface.withOpacity(isFuture ? 0.7 : 1.0),
+              fontSize: 16,
+              fontWeight: FontWeight.w700,
+            ),
           ),
         ],
       ),
@@ -468,34 +685,58 @@ class _RowTile extends StatelessWidget {
                   bottom: BorderSide(color: t.divider.withOpacity(0.08)),
                 ),
               )
-            : const BoxDecoration(); // minimal — no decoration, no divider
+            : const BoxDecoration();
 
     return Container(
-        margin: const EdgeInsets.symmetric(vertical: 2),
-        decoration: base,
-        child: content);
+      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
+      decoration: base,
+      child: content,
+    );
+  }
+
+  String _futureLabel(DateTime d) {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final target = DateTime(d.year, d.month, d.day);
+    final diff = target.difference(today).inDays;
+    if (diff == 1) return 'tomorrow';
+    if (diff < 7) return 'in $diff days';
+    if (diff < 14) return 'next week';
+    return DateFormat.MMMd().format(d);
   }
 }
 
 class _TotalBar extends StatelessWidget {
   final Board board;
   final BoardTheme t;
-  final BoardStyle style;
   final NumberFormat money;
 
-  const _TotalBar(
-      {required this.board,
-      required this.t,
-      required this.style,
-      required this.money});
+  const _TotalBar({required this.board, required this.t, required this.money});
 
   @override
   Widget build(BuildContext context) {
     final totals = board.totalsByCategory();
     final total = board.total;
+    final realized = board.realizedTotal;
+    final planned = board.plannedTotal;
     final topEntries = totals.entries.toList()
       ..sort((a, b) => b.value.compareTo(a.value));
     final top3 = topEntries.take(3).toList();
+
+    final budget = board.budget;
+    final overBudget = budget != null && realized > budget;
+    final remaining = budget != null ? budget - realized : null;
+    final fillPct = budget != null && budget > 0
+        ? (realized / budget).clamp(0.0, 2.0)
+        : null;
+    Color barColor = Colors.green;
+    if (fillPct != null) {
+      if (fillPct >= 1.0) {
+        barColor = Colors.red;
+      } else if (fillPct >= 0.8) {
+        barColor = Colors.amber.shade700;
+      }
+    }
 
     return SafeArea(
       top: false,
@@ -505,12 +746,12 @@ class _TotalBar extends StatelessWidget {
           border: Border(top: BorderSide(color: t.divider, width: 1)),
         ),
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+          padding: const EdgeInsets.fromLTRB(16, 10, 16, 12),
           child: Column(
             children: [
               if (top3.isNotEmpty && total > 0)
                 Padding(
-                  padding: const EdgeInsets.only(bottom: 10),
+                  padding: const EdgeInsets.only(bottom: 8),
                   child: Row(
                     children: [
                       for (final e in top3) ...[
@@ -545,6 +786,62 @@ class _TotalBar extends StatelessWidget {
                     ],
                   ),
                 ),
+              if (budget != null)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 6),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Row(
+                        children: [
+                          Text(
+                            overBudget
+                                ? 'Over budget by ${money.format(realized - budget)}'
+                                : '${money.format(realized)} of ${money.format(budget)}',
+                            style: TextStyle(
+                              color: barColor,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          const Spacer(),
+                          if (planned > 0)
+                            Text(
+                              '+${money.format(planned)} planned',
+                              style: TextStyle(
+                                color: Colors.orange.shade700,
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(3),
+                        child: LinearProgressIndicator(
+                          value: fillPct != null
+                              ? (fillPct > 1.0 ? 1.0 : fillPct)
+                              : 0,
+                          minHeight: 6,
+                          backgroundColor: t.divider.withOpacity(0.08),
+                          valueColor: AlwaysStoppedAnimation<Color>(barColor),
+                        ),
+                      ),
+                      if (!overBudget && remaining != null)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 4),
+                          child: Text(
+                            '${money.format(remaining)} left',
+                            style: TextStyle(
+                              color: t.onSurface.withOpacity(0.5),
+                              fontSize: 10,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
               Row(
                 children: [
                   Text(
@@ -571,5 +868,331 @@ class _TotalBar extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+
+class _RecurringSection extends StatelessWidget {
+  final Board board;
+  final BoardTheme t;
+  final NumberFormat money;
+  const _RecurringSection(
+      {required this.board, required this.t, required this.money});
+
+  String _freqLabel(RecurrenceFrequency f) {
+    switch (f) {
+      case RecurrenceFrequency.daily:
+        return 'every day';
+      case RecurrenceFrequency.weekly:
+        return 'weekly';
+      case RecurrenceFrequency.monthly:
+        return 'monthly';
+      case RecurrenceFrequency.weekdays:
+        return 'weekdays';
+      case RecurrenceFrequency.weekends:
+        return 'weekends';
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.fromLTRB(12, 8, 12, 4),
+      padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
+      decoration: BoxDecoration(
+        color: t.accent.withOpacity(0.08),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: t.accent.withOpacity(0.2)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.repeat, size: 14, color: t.accent),
+              const SizedBox(width: 6),
+              Text(
+                'Recurring',
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  color: t.accent,
+                  letterSpacing: 0.5,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          for (final tpl in board.recurring)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 2),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      '${tpl.label} • ${money.format(tpl.amount)} • ${_freqLabel(tpl.rule.frequency)}',
+                      style: TextStyle(
+                          fontSize: 12, color: t.onSurface.withOpacity(0.8)),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _RecurringSheet extends StatefulWidget {
+  final Board board;
+  const _RecurringSheet({required this.board});
+
+  @override
+  State<_RecurringSheet> createState() => _RecurringSheetState();
+}
+
+class _RecurringSheetState extends State<_RecurringSheet> {
+  @override
+  Widget build(BuildContext context) {
+    final provider = context.watch<BoardProvider>();
+    final b = provider.boards.firstWhere(
+      (x) => x.id == widget.board.id,
+      orElse: () => widget.board,
+    );
+    return SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                const Expanded(
+                  child: Text(
+                    'Recurring entries',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+                  ),
+                ),
+                FilledButton.tonalIcon(
+                  onPressed: () => _addRecurring(context, b),
+                  icon: const Icon(Icons.add, size: 16),
+                  label: const Text('Add'),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            if (b.recurring.isEmpty)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 24),
+                child: Column(
+                  children: [
+                    Icon(Icons.repeat,
+                        size: 32, color: Theme.of(context).colorScheme.outline),
+                    const SizedBox(height: 8),
+                    const Text(
+                      'No recurring entries yet',
+                      style: TextStyle(fontWeight: FontWeight.w500),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Coffee, subscriptions, weekly groceries — auto-added.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Theme.of(context).colorScheme.outline,
+                      ),
+                    ),
+                  ],
+                ),
+              )
+            else
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxHeight: 320),
+                child: ListView.separated(
+                  shrinkWrap: true,
+                  itemCount: b.recurring.length,
+                  separatorBuilder: (_, __) => const Divider(height: 1),
+                  itemBuilder: (_, i) {
+                    final tpl = b.recurring[i];
+                    return ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      title: Text(tpl.label),
+                      subtitle: Text(
+                        '\$${tpl.amount.toStringAsFixed(2)} • ${tpl.category} • ${tpl.rule.frequency.name}',
+                      ),
+                      trailing: IconButton(
+                        icon:
+                            const Icon(Icons.delete_outline, color: Colors.red),
+                        onPressed: () => provider.deleteRecurring(b, tpl),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            const SizedBox(height: 8),
+            Text(
+              'Editing a template keeps historical entries; new dates stop generating after deletion.',
+              style: TextStyle(
+                fontSize: 11,
+                color: Theme.of(context).colorScheme.outline,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _addRecurring(BuildContext context, Board b) async {
+    // Capture provider BEFORE any await so we never use BuildContext across async gaps.
+    final provider = context.read<BoardProvider>();
+    final labelCtrl = TextEditingController();
+    final amountCtrl = TextEditingController();
+    String category = AppCategories.presets.first;
+    RecurrenceFrequency freq = RecurrenceFrequency.weekly;
+    DateTime? endDate;
+
+    final saved = await showModalBottomSheet<bool>(
+      context: context,
+      isScrollControlled: true,
+      builder: (ctx) {
+        return Padding(
+          padding:
+              EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
+          child: StatefulBuilder(
+            builder: (c, setSt) => SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    const Text(
+                      'New recurring entry',
+                      style:
+                          TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: labelCtrl,
+                      autofocus: true,
+                      decoration: const InputDecoration(labelText: 'Label'),
+                    ),
+                    const SizedBox(height: 8),
+                    TextField(
+                      controller: amountCtrl,
+                      keyboardType:
+                          const TextInputType.numberWithOptions(decimal: true),
+                      inputFormatters: [
+                        FilteringTextInputFormatter.allow(
+                            RegExp(r'^\d*\.?\d{0,2}')),
+                      ],
+                      decoration: const InputDecoration(
+                          labelText: 'Amount', prefixText: '\$ '),
+                    ),
+                    const SizedBox(height: 12),
+                    DropdownButtonFormField<String>(
+                      value: category,
+                      decoration: const InputDecoration(labelText: 'Category'),
+                      items: [
+                        for (final c in AppCategories.presets)
+                          DropdownMenuItem(value: c, child: Text(c)),
+                      ],
+                      onChanged: (v) => setSt(() => category = v ?? category),
+                    ),
+                    const SizedBox(height: 12),
+                    const Text('Frequency',
+                        style: TextStyle(fontWeight: FontWeight.w600)),
+                    const SizedBox(height: 6),
+                    Wrap(
+                      spacing: 6,
+                      children: [
+                        for (final f in RecurrenceFrequency.values)
+                          ChoiceChip(
+                            label: Text(f.name),
+                            selected: freq == f,
+                            onSelected: (_) => setSt(() => freq = f),
+                          ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            onPressed: () async {
+                              final picked = await showDatePicker(
+                                context: c,
+                                initialDate: endDate ??
+                                    DateTime.now()
+                                        .add(const Duration(days: 90)),
+                                firstDate: DateTime.now(),
+                                lastDate: DateTime.now()
+                                    .add(const Duration(days: 365 * 5)),
+                              );
+                              if (picked != null) setSt(() => endDate = picked);
+                            },
+                            icon: const Icon(Icons.event_outlined),
+                            label: Text(endDate == null
+                                ? 'No end date'
+                                : 'Until ${DateFormat.yMMMd().format(endDate!)}'),
+                          ),
+                        ),
+                        if (endDate != null)
+                          IconButton(
+                            icon: const Icon(Icons.close),
+                            onPressed: () => setSt(() => endDate = null),
+                          ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton(
+                            onPressed: () => Navigator.pop(c, false),
+                            child: const Text('Cancel'),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: FilledButton(
+                            onPressed: () {
+                              final label = labelCtrl.text.trim();
+                              final amt =
+                                  double.tryParse(amountCtrl.text.trim()) ?? 0;
+                              if (label.isEmpty || amt <= 0) return;
+                              Navigator.pop(c, true);
+                            },
+                            child: const Text('Add'),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+
+    if (saved == true && mounted) {
+      final amt = double.tryParse(amountCtrl.text.trim()) ?? 0;
+      if (labelCtrl.text.trim().isNotEmpty && amt > 0) {
+        await provider.addRecurring(
+          b,
+          label: labelCtrl.text.trim(),
+          amount: amt,
+          category: category,
+          frequency: freq,
+          endDate: endDate,
+        );
+      }
+    }
   }
 }

@@ -25,7 +25,13 @@ class BoardsListScreen extends StatelessWidget {
       body: boards.isEmpty
           ? const _EmptyState()
           : ListView.separated(
-              padding: const EdgeInsets.fromLTRB(12, 8, 12, 88),
+              // bottom padding = FAB extended (~56) + safe area gesture inset + breathing room
+              padding: EdgeInsets.fromLTRB(
+                12,
+                8,
+                12,
+                96 + MediaQuery.of(context).viewPadding.bottom,
+              ),
               itemCount: boards.length,
               separatorBuilder: (_, __) => const SizedBox(height: 8),
               itemBuilder: (_, i) => _BoardTile(board: boards[i]),
@@ -105,8 +111,6 @@ class _BoardTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final t = AppThemes.byIndex(board.themeIndex);
-    final style = BoardStyle
-        .values[board.styleIndex.clamp(0, BoardStyle.values.length - 1)];
     return Material(
       color: t.surface,
       borderRadius: BorderRadius.circular(12),
@@ -152,7 +156,7 @@ class _BoardTile extends StatelessWidget {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      '${board.rows.length} ${board.rows.length == 1 ? 'item' : 'items'} • ${style.label} • ${t.name}',
+                      _subtitle(board),
                       style: TextStyle(
                         color: t.onSurface.withOpacity(0.6),
                         fontSize: 12,
@@ -179,6 +183,25 @@ class _BoardTile extends StatelessWidget {
     );
   }
 
+  String _subtitle(Board b) {
+    final t = AppThemes.byIndex(b.themeIndex);
+    final s =
+        BoardStyle.values[b.styleIndex.clamp(0, BoardStyle.values.length - 1)];
+    final parts = <String>[
+      '${b.rows.length} ${b.rows.length == 1 ? 'item' : 'items'}',
+      s.label,
+      t.name,
+    ];
+    if (b.budget != null) {
+      parts.insert(1, 'budget \$${b.budget!.toStringAsFixed(0)}');
+    }
+    final planned = b.plannedTotal;
+    if (planned > 0) {
+      parts.add('+\$${planned.toStringAsFixed(0)} planned');
+    }
+    return parts.join(' • ');
+  }
+
   Future<void> _showBoardMenu(BuildContext context) async {
     final provider = context.read<BoardProvider>();
     final action = await showModalBottomSheet<String>(
@@ -192,6 +215,13 @@ class _BoardTile extends StatelessWidget {
               onTap: () => Navigator.pop(context, 'rename'),
             ),
             ListTile(
+              leading: const Icon(Icons.flag_outlined),
+              title: Text(board.budget == null
+                  ? 'Set budget'
+                  : 'Edit budget (${'\$${board.budget!.toStringAsFixed(0)}'})'),
+              onTap: () => Navigator.pop(context, 'budget'),
+            ),
+            ListTile(
               leading: const Icon(Icons.delete_outline, color: Colors.red),
               title: const Text('Delete', style: TextStyle(color: Colors.red)),
               onTap: () => Navigator.pop(context, 'delete'),
@@ -203,8 +233,49 @@ class _BoardTile extends StatelessWidget {
     if (!context.mounted) return;
     if (action == 'rename') {
       await _rename(context, provider);
+    } else if (action == 'budget') {
+      await _editBudget(context, provider);
     } else if (action == 'delete') {
       await _confirmDelete(context, provider);
+    }
+  }
+
+  Future<void> _editBudget(BuildContext context, BoardProvider provider) async {
+    final controller =
+        TextEditingController(text: board.budget?.toStringAsFixed(0) ?? '');
+    final result = await showDialog<double?>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: Text(board.budget == null ? 'Set budget' : 'Edit budget'),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+          decoration:
+              const InputDecoration(prefixText: '\$ ', hintText: '0 to clear'),
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel')),
+          FilledButton(
+            onPressed: () {
+              final t = controller.text.trim();
+              if (t.isEmpty) {
+                Navigator.pop(context, 0.0); // 0 = clear
+                return;
+              }
+              final v = double.tryParse(t);
+              if (v == null || v < 0) return;
+              Navigator.pop(context, v);
+            },
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    );
+    if (result != null) {
+      await provider.setBoardBudget(board, result == 0 ? null : result);
     }
   }
 

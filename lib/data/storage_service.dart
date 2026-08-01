@@ -1,4 +1,5 @@
 import 'package:hive_flutter/hive_flutter.dart';
+
 import '../models/board.dart';
 
 class StorageService {
@@ -16,6 +17,12 @@ class StorageService {
     if (!Hive.isAdapterRegistered(2)) {
       Hive.registerAdapter(ExpenseRowAdapter());
     }
+    if (!Hive.isAdapterRegistered(3)) {
+      Hive.registerAdapter(RecurrenceFrequencyAdapter());
+    }
+    if (!Hive.isAdapterRegistered(4)) {
+      Hive.registerAdapter(RecurrenceRuleAdapter());
+    }
     boardsBox = await Hive.openBox<Board>(boardsBoxName);
     settingsBox = await Hive.openBox(settingsBoxName);
   }
@@ -27,9 +34,6 @@ class StorageService {
   }
 
   Future<void> saveBoard(Board board) async {
-    // put() both inserts new and updates existing by key — handles both first-save
-    // and subsequent updates (HiveObject.save() only works AFTER the object has
-    // been put in a box, which it hasn't for a freshly constructed Board).
     await boardsBox.put(board.id, board);
   }
 
