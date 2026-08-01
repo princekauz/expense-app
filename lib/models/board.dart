@@ -204,11 +204,17 @@ class ExpenseRow extends HiveObject {
 }
 
 /// A template that generates ExpenseRow instances according to [RecurrenceRule].
-class RecurringRowTemplate {
+@HiveType(typeId: 5)
+class RecurringRowTemplate extends HiveObject {
+  @HiveField(0)
   final String id;
+  @HiveField(1)
   final String label;
+  @HiveField(2)
   final double amount;
+  @HiveField(3)
   final String category;
+  @HiveField(4)
   final RecurrenceRule rule;
 
   RecurringRowTemplate({

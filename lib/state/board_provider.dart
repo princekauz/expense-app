@@ -94,12 +94,18 @@ class BoardProvider extends ChangeNotifier {
   Future<void> setBoardTheme(Board b, int themeIndex, int styleIndex) async {
     b.themeIndex = themeIndex;
     b.styleIndex = styleIndex;
-    await _storage.saveBoard(b);
-    final fresh = _reloadAndSplice(b.id);
-    AppLog.instance.log(
-        'setBoardTheme: theme=$themeIndex style=$styleIndex b===fresh?=${identical(b, fresh)} fresh.themeIndex=${fresh.themeIndex}',
-        tag: 'provider');
-    notifyListeners();
+    try {
+      await _storage.saveBoard(b);
+      final fresh = _reloadAndSplice(b.id); // ignore: unused_local_variable
+      AppLog.instance.log(
+          'setBoardTheme: theme=$themeIndex style=$styleIndex b===fresh?=\${identical(b, fresh)} fresh.themeIndex=\${fresh.themeIndex}',
+          tag: 'provider');
+      notifyListeners();
+    } catch (e) {
+      AppLog.instance.log('setBoardTheme FAILED: \$e',
+          level: LogLevel.error, tag: 'provider');
+      rethrow;
+    }
   }
 
   Future<void> setBoardBudget(Board b, double? budget) async {
@@ -203,12 +209,18 @@ class BoardProvider extends ChangeNotifier {
     AppLog.instance.log(
         'addRecurring: pre-save board.b.id=${b.id} recurring.count=${b.recurring.length} b.hashCode=${b.hashCode}',
         tag: 'provider');
-    await _storage.saveBoard(b);
-    final fresh = _reloadAndSplice(b.id);
-    AppLog.instance.log(
-        'addRecurring: post-splice fresh.recurring.count=${fresh.recurring.length} fresh.hashCode=${fresh.hashCode} b===fresh?=${identical(b, fresh)}',
-        tag: 'provider');
-    notifyListeners();
+    try {
+      await _storage.saveBoard(b);
+      final fresh = _reloadAndSplice(b.id);
+      AppLog.instance.log(
+          'addRecurring: post-splice fresh.recurring.count=${fresh.recurring.length} fresh.hashCode=${fresh.hashCode} b===fresh?=${identical(b, fresh)}',
+          tag: 'provider');
+      notifyListeners();
+    } catch (e) {
+      AppLog.instance.log('addRecurring FAILED: \$e',
+          level: LogLevel.error, tag: 'provider');
+      rethrow;
+    }
     return tpl;
   }
 

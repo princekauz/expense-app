@@ -23,6 +23,9 @@ class StorageService {
     if (!Hive.isAdapterRegistered(4)) {
       Hive.registerAdapter(RecurrenceRuleAdapter());
     }
+    if (!Hive.isAdapterRegistered(5)) {
+      Hive.registerAdapter(RecurringRowTemplateAdapter());
+    }
     boardsBox = await Hive.openBox<Board>(boardsBoxName);
     settingsBox = await Hive.openBox(settingsBoxName);
   }
