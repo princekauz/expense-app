@@ -1,5 +1,6 @@
 import 'dart:collection';
 import 'package:flutter/foundation.dart';
+
 /// In-memory ring buffer of log lines. Backed by a [ChangeNotifier] so the
 /// LogScreen can `watch` it for live updates.
 class AppLog {
